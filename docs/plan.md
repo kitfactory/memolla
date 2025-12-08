@@ -1,0 +1,11 @@
+# 実装計画チェックリスト (v0)
+- [x] 依存追加: `uv add bm25s_j chromadb openai`（必要なら `python-dotenv` も）。インストール後に import 確認を行う。
+- [x] 設定ロード: OPENAI_API_KEY / OPENAI_BASE_URL / LMSTUDIO_BASE_URL / OLLAMA_BASE_URL を優先順で読み込むユーティリティを実装し、単体テストで値の決定ロジックを確認する。※簡易手動確認済み
+- [x] ドメインモデル定義: DocumentRecord / ChunkRecord / MessageRecord / SearchResult / OptimizeResult を追加し、型とフィールド初期化をテストする。※簡易手動確認済み
+- [x] ストレージ層: SQLite リポジトリを実装（documents/chunks/messages）。add/get の往復テストを実データベースで行う。※簡易手動確認済み
+- [x] インデックス層: bm25s_j と Chroma のラッパーを実装し、チャンク登録と検索の簡易テスト（BM25 単体検索が通ること）を行う。※簡易手動確認済み
+- [x] Embedding/LLM プロバイダ: OpenAI 互換クライアントを実装し、ダミー/モックで embed/generate が呼ばれることをテストする（外部通信しない形で）。※簡易手動確認済み
+- [x] アプリケーション層: ConversationService / KnowledgeService / SearchService / SummaryService を実装し、ユースケース単位のテスト（会話保存→要約、ナレッジ追加→検索）が通ることを確認する。※簡易手動確認済み
+- [x] Interface 層: Memory クラスで公開 API をまとめ、エラーメッセージ仕様通りになることをテストする。※簡易手動確認済み
+- [x] optimize: すべての level で NotImplementedError (`[mem][E005]`) を返すことをテストする。※簡易手動確認済み
+- [x] README 更新: セットアップ手順（uv, OPENAI_API_KEY 必須）と未実装の optimize を明記する。変更後に lint/format があれば実行。
