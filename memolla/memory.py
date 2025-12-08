@@ -110,41 +110,53 @@ class Memory:
         if self.dense_available and self.dense_index:
             self.dense_index.add_chunks(chunks)
 
+    # 会話取得 / get conversation
+    def get_conversation(self, session_id: str) -> List[MessageRecord]:
+        return self.repo.get_session_messages(session_id)
+
+    # ナレッジ取得 / get knowledge
+    def get_knowledge(self, doc_id: str) -> DocumentRecord:
+        doc = self.repo.get_document(doc_id)
+        if not doc:
+            raise ValueError("[mem][E006] target not found")
+        return doc
+
     # 検索 / search
-    def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
+    def search(self, query: str, top_k: int = 5, mode: str = "hybrid") -> List[SearchResult]:
         if top_k <= 0:
             raise ValueError("[mem][E004] top_k must be positive")
-        bm25_hits = self.bm25_index.search(query, top_k=top_k)
+        mode = mode.lower()
+        if mode not in {"hybrid", "bm25", "dense"}:
+            raise ValueError("[mem][E004] unsupported search mode")
 
+        bm25_hits: List[tuple[str, float]] = []
         dense_hits: List[tuple[str, float]] = []
-        if self.dense_available and self.dense_index:
-            try:
-                dense_hits = self.dense_index.search(query, top_k=top_k)
-            except Exception as exc:  # pragma: no cover - defensive fallback
-                logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
-                dense_hits = []
-        else:
-            logger.warning("[mem][W01] dense index unavailable, fallback to bm25")
+
+        if mode in {"hybrid", "bm25"}:
+            bm25_hits = self.bm25_index.search(query, top_k=top_k)
+
+        if mode in {"hybrid", "dense"}:
+            if self.dense_available and self.dense_index:
+                try:
+                    dense_hits = self.dense_index.search(query, top_k=top_k)
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
+                    if mode == "dense":
+                        dense_hits = []
+                    else:
+                        dense_hits = []
+            else:
+                logger.warning("[mem][W01] dense index unavailable, fallback to bm25")
+                if mode == "dense":
+                    dense_hits = []
+
+        if mode == "bm25":
+            return self._hits_to_results(bm25_hits, top_k, use_bm25=True, use_dense=False)
+        if mode == "dense":
+            return self._hits_to_results(dense_hits, top_k, use_bm25=False, use_dense=True)
 
         merged = self._merge_scores(bm25_hits, dense_hits)
-        results: List[SearchResult] = []
-        for chunk_id, score, sbm25, sdense in merged[:top_k]:
-            doc_id = chunk_id.split(":", 1)[0]
-            chunk = self._get_chunk(doc_id, chunk_id)
-            if not chunk:
-                continue
-            results.append(
-                SearchResult(
-                    doc_id=doc_id,
-                    chunk_id=chunk_id,
-                    text=chunk.text,
-                    score=score,
-                    score_bm25=sbm25,
-                    score_dense=sdense,
-                    metadata={},
-                )
-            )
-        return results
+        return self._merged_to_results(merged, top_k)
 
     def _get_chunk(self, doc_id: str, chunk_id: str) -> Optional[ChunkRecord]:
         chunks = self.repo.list_chunks(doc_id)
@@ -179,6 +191,61 @@ class Memory:
             merged.append((chunk_id, score, s_bm, s_de))
         merged.sort(key=lambda x: x[1], reverse=True)
         return merged
+
+    def _hits_to_results(
+        self,
+        hits: List[tuple[str, float]],
+        top_k: int,
+        *,
+        use_bm25: bool,
+        use_dense: bool,
+    ) -> List[SearchResult]:
+        results: List[SearchResult] = []
+        if not hits:
+            return results
+        max_score = max(score for _, score in hits) or 1.0
+        for chunk_id, score in hits[:top_k]:
+            doc_id = chunk_id.split(":", 1)[0]
+            chunk = self._get_chunk(doc_id, chunk_id)
+            if not chunk:
+                continue
+            score_norm = score / max_score
+            results.append(
+                SearchResult(
+                    doc_id=doc_id,
+                    chunk_id=chunk_id,
+                    text=chunk.text,
+                    score=score_norm,
+                    score_bm25=score_norm if use_bm25 else None,
+                    score_dense=score_norm if use_dense else None,
+                    metadata={},
+                )
+            )
+        return results
+
+    def _merged_to_results(
+        self,
+        merged: List[tuple[str, float, Optional[float], Optional[float]]],
+        top_k: int,
+    ) -> List[SearchResult]:
+        results: List[SearchResult] = []
+        for chunk_id, score, sbm25, sdense in merged[:top_k]:
+            doc_id = chunk_id.split(":", 1)[0]
+            chunk = self._get_chunk(doc_id, chunk_id)
+            if not chunk:
+                continue
+            results.append(
+                SearchResult(
+                    doc_id=doc_id,
+                    chunk_id=chunk_id,
+                    text=chunk.text,
+                    score=score,
+                    score_bm25=sbm25,
+                    score_dense=sdense,
+                    metadata={},
+                )
+            )
+        return results
 
     # 要約 / create_summary
     def create_summary(
