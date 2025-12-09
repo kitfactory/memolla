@@ -101,7 +101,7 @@ mem.search("メモリ")  # default_mode を使用
 
 - BM25:  typo に弱いが、「キーワード一致」の強さ・解釈の素直さがメリット  
 - Chroma:  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
-- Hybrid: BM25 と Chroma のスコアを `score = α * chroma + (1-α) * bm25`（デフォルト α=0.5）で統合するモード
+- Hybrid: BM25 と Chroma のスコアを `score = α * chroma + (1-α) * bm25`（デフォルト α=0.5、`hybrid_alpha` で変更可）で統合するモード
 
 ### フォールバック動作
 

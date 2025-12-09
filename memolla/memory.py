@@ -33,13 +33,23 @@ class Memory:
         backend: str = "auto",
         db_path: str | None = None,
         default_mode: str = "hybrid",
+        hybrid_alpha: float = 0.5,
+        top_k_bm25: int = 10,
+        top_k_chroma: int = 10,
         **backend_options: Any,
     ) -> None:
         if backend != "auto":
             raise ValueError("[mem][E004] Unsupported backend")
         if default_mode not in {"hybrid", "bm25", "chroma"}:
             raise ValueError("[mem][E004] unsupported search mode")
+        if not (0.0 <= hybrid_alpha <= 1.0):
+            raise ValueError("[mem][E004] hybrid_alpha must be between 0 and 1")
+        if top_k_bm25 <= 0 or top_k_chroma <= 0:
+            raise ValueError("[mem][E004] top_k_bm25 and top_k_chroma must be positive")
         self.default_mode = default_mode
+        self.hybrid_alpha = hybrid_alpha
+        self.top_k_bm25 = top_k_bm25
+        self.top_k_chroma = top_k_chroma
 
         self.db_path = Path(db_path or os.getenv("MEMOLLA_DB_PATH", ".memolla/db.sqlite"))
         self.repo = SQLiteRepository(self.db_path)
@@ -137,12 +147,12 @@ class Memory:
         dense_hits: List[tuple[str, float]] = []
 
         if mode in {"hybrid", "bm25"}:
-            bm25_hits = self.bm25_index.search(query, top_k=top_k)
+            bm25_hits = self.bm25_index.search(query, top_k=self.top_k_bm25)
 
         if mode in {"hybrid", "chroma"}:
             if self.dense_available and self.dense_index:
                 try:
-                    dense_hits = self.dense_index.search(query, top_k=top_k)
+                    dense_hits = self.dense_index.search(query, top_k=self.top_k_chroma)
                 except Exception as exc:  # pragma: no cover - defensive fallback
                     logger.warning("[mem][W01] chroma index unavailable, fallback to bm25 (%s)", exc)
                     if mode == "chroma":
@@ -159,7 +169,7 @@ class Memory:
         if mode == "chroma":
             return self._hits_to_results(dense_hits, top_k, use_bm25=False, use_dense=True)
 
-        merged = self._merge_scores(bm25_hits, dense_hits)
+        merged = self._merge_scores(bm25_hits, dense_hits, alpha=self.hybrid_alpha)
         return self._merged_to_results(merged, top_k)
 
     def _get_chunk(self, doc_id: str, chunk_id: str) -> Optional[ChunkRecord]:

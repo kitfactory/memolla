@@ -85,13 +85,18 @@ Hybrid (Chroma + BM25) is the default, but you can fix the mode at constructor t
 
 ```python
 # set default at constructor (hybrid by default)
-mem = Memory(default_mode="hybrid")
+mem = Memory(
+    default_mode="hybrid",  # or "bm25" / "chroma"
+    hybrid_alpha=0.5,       # blend weight: score = α*chroma + (1-α)*bm25
+    top_k_bm25=10,
+    top_k_chroma=10,
+)
 mem.search("memory")  # uses default_mode
 ```
 
 - BM25: strong keyword matching, weaker to typos  
 - Chroma: semantic closeness, sometimes pulls irrelevant items  
-- Hybrid: merges BM25 and Chroma scores with `score = α * chroma + (1-α) * bm25` (α=0.5 by default)
+- Hybrid: merges BM25 and Chroma scores with `score = α * chroma + (1-α) * bm25` (α=0.5 by default; `hybrid_alpha` configurable)
 
 ### Fallback
 
