@@ -3,10 +3,7 @@ from memolla import Memory
 
 
 def main() -> None:
-    mem = Memory()
-    # Dense を強制無効化 / force BM25 only
-    mem.dense_available = False
-    mem.dense_index = None  # type: ignore
+    mem = Memory(default_mode="bm25")
 
     mem.add_knowledge("doc1", "BM25 は単語頻度に基づく検索手法です。")
     mem.add_knowledge("doc2", "ハイブリッド検索では BM25 も利用されます。")

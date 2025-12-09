@@ -126,10 +126,10 @@ class Memory:
         return doc
 
     # 検索 / search
-    def search(self, query: str, top_k: int = 5, mode: Optional[str] = None) -> List[SearchResult]:
+    def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
         if top_k <= 0:
             raise ValueError("[mem][E004] top_k must be positive")
-        mode = (mode or self.default_mode).lower()
+        mode = self.default_mode
         if mode not in {"hybrid", "bm25", "dense"}:
             raise ValueError("[mem][E004] unsupported search mode")
 

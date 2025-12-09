@@ -81,16 +81,12 @@ print("summary:", summary)
 
 ## Search modes
 
-Hybrid (Chroma + BM25) is the default, but you can force BM25-only or dense-only:
+Hybrid (Chroma + BM25) is the default, but you can fix the mode at constructor time:
 
 ```python
 # set default at constructor (hybrid by default)
 mem = Memory(default_mode="hybrid")
 mem.search("memory")  # uses default_mode
-
-# override per-call if needed
-mem.search("memory", mode="bm25")
-mem.search("memory", mode="dense")
 ```
 
 - BM25: strong keyword matching, weaker to typos  

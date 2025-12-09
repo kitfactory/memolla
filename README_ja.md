@@ -91,16 +91,12 @@ print("summary:", summary)
 ## 検索モード
 
 memolla の検索は、Dense（Chroma）と Lexical（BM25）を組み合わせた**ハイブリッド**が基本ですが、  
-状況に応じて **BM25 だけ / Chroma だけ** も選べます。
+コンストラクタで **BM25 だけ / Chroma だけ** を固定することもできます。
 
 ```python
 # コンストラクタでデフォルトモードを指定（デフォルトは hybrid）
 mem = Memory(default_mode="hybrid")
 mem.search("メモリ")  # default_mode を使用
-
-# 呼び出し時に上書きしたい場合
-mem.search("メモリ", mode="bm25")
-mem.search("メモリ", mode="dense")
 ```
 
 - BM25:  typo に弱いが、「キーワード一致」の強さ・解釈の素直さがメリット  
