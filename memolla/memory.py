@@ -36,6 +36,7 @@ class Memory:
         hybrid_alpha: float = 0.5,
         top_k_bm25: int = 10,
         top_k_chroma: int = 10,
+        dense_index: Any | None = None,
         **backend_options: Any,
     ) -> None:
         if backend != "auto":
@@ -66,13 +67,17 @@ class Memory:
 
         chroma_dir = os.getenv("MEMOLLA_CHROMA_PERSIST_DIR")
         self.bm25_index = BM25Index()
-        try:
-            self.dense_index = DenseIndex(persist_dir=chroma_dir, embedding=self.embedding)
+        if dense_index is not None:
+            self.dense_index = dense_index
             self.dense_available = True
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
-            self.dense_available = False
-            self.dense_index = None  # type: ignore
+        else:
+            try:
+                self.dense_index = DenseIndex(persist_dir=chroma_dir, embedding=self.embedding)
+                self.dense_available = True
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
+                self.dense_available = False
+                self.dense_index = None  # type: ignore
 
     # 会話ログ追加 / add conversation log
     def add_conversation(
@@ -154,13 +159,13 @@ class Memory:
                 try:
                     dense_hits = self.dense_index.search(query, top_k=self.top_k_chroma)
                 except Exception as exc:  # pragma: no cover - defensive fallback
-                    logger.warning("[mem][W01] chroma index unavailable, fallback to bm25 (%s)", exc)
+                    logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
                     if mode == "chroma":
                         dense_hits = []
                     else:
                         dense_hits = []
             else:
-                logger.warning("[mem][W01] chroma index unavailable, fallback to bm25")
+                logger.warning("[mem][W01] dense index unavailable, fallback to bm25")
                 if mode == "chroma":
                     dense_hits = []
 
