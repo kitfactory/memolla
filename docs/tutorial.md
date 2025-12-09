@@ -27,16 +27,16 @@ python examples/bm25_demo.py
 
 ## 3. Chroma（ベクトル検索）のみで検索
 `examples/chroma_demo.py`  
-Chroma の dense インデックスを直接呼び出します（Memory の内部を利用）。
+Chroma のベクトル検索を単独で使います（コンストラクタで `default_mode="chroma"` を指定）。
 ```bash
 python examples/chroma_demo.py
 ```
 出力例:
 ```
-[dense] doc=doc1 chunk=doc1:0 score=0.842
-[dense] doc=doc2 chunk=doc2:0 score=0.658
+[chroma] doc=doc1 chunk=doc1:0 score=0.842
+[chroma] doc=doc2 chunk=doc2:0 score=0.658
 ```
 
 ## メモ
 - Dense 利用には埋め込み生成が必要です。`OPENAI_API_KEY` が無い場合は簡易ハッシュ埋め込みで動作しますが、品質は劣化します。
-- チャンクサイズ/overlap はデフォルト固定（512/32）。検索パラメータは alpha=0.5, top_k=5, top_k_bm25=10, top_k_dense=10 です。
+- チャンクサイズ/overlap はデフォルト固定（512/32）。検索パラメータは alpha=0.5, top_k=5, top_k_bm25=10, top_k_chroma=10 です。

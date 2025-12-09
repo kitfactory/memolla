@@ -19,7 +19,7 @@ If you don’t need a full stack like mem0 but just want **some long-term memory
   BM25 (`bm25s_j`) for lexical, Chroma for dense vectors, combined in hybrid mode.
 
 - 🔄 **Mode switching**  
-  `hybrid`, `bm25`, `dense` – pick the search mode you want.
+  `hybrid`, `bm25`, `chroma` – pick the search mode you want.
 
 - 📝 **Quick summarization**  
   Uses an OpenAI-compatible API to summarize docs (or conversations). Useful for pre-compressing RAG context.
@@ -90,12 +90,12 @@ mem.search("memory")  # uses default_mode
 ```
 
 - BM25: strong keyword matching, weaker to typos  
-- Dense: semantic closeness, sometimes pulls irrelevant items  
+- Chroma: semantic closeness, sometimes pulls irrelevant items  
 - Hybrid: balances both scores
 
 ### Fallback
 
-If Chroma (dense) is unavailable, memolla automatically falls back to BM25-only and logs:
+If Chroma is unavailable, memolla automatically falls back to BM25-only and logs:
 
 - `[mem][W01] ... fallback to bm25`
 
@@ -110,7 +110,7 @@ from memolla import Memory
 
 mem = Memory(
     # put settings here if needed (DB path, Chroma params, default search mode, etc.)
-    default_mode="hybrid",  # or "bm25" / "dense"
+    default_mode="hybrid",  # or "bm25" / "chroma"
 )
 ```
 
@@ -132,12 +132,8 @@ doc = mem.get_knowledge("doc1")
 ### Search
 
 ```python
-# hybrid
+# search using default_mode set in constructor (hybrid/bm25/chroma)
 results = mem.search("query")
-
-# mode selection
-results_bm25  = mem.search("query", mode="bm25")
-results_dense = mem.search("query", mode="dense")
 ```
 
 `results` contain score, source info (conversation/knowledge), and text for each hit.

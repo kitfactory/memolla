@@ -37,7 +37,7 @@ class Memory:
     ) -> None:
         if backend != "auto":
             raise ValueError("[mem][E004] Unsupported backend")
-        if default_mode not in {"hybrid", "bm25", "dense"}:
+        if default_mode not in {"hybrid", "bm25", "chroma"}:
             raise ValueError("[mem][E004] unsupported search mode")
         self.default_mode = default_mode
 
@@ -130,7 +130,7 @@ class Memory:
         if top_k <= 0:
             raise ValueError("[mem][E004] top_k must be positive")
         mode = self.default_mode
-        if mode not in {"hybrid", "bm25", "dense"}:
+        if mode not in {"hybrid", "bm25", "chroma"}:
             raise ValueError("[mem][E004] unsupported search mode")
 
         bm25_hits: List[tuple[str, float]] = []
@@ -139,24 +139,24 @@ class Memory:
         if mode in {"hybrid", "bm25"}:
             bm25_hits = self.bm25_index.search(query, top_k=top_k)
 
-        if mode in {"hybrid", "dense"}:
+        if mode in {"hybrid", "chroma"}:
             if self.dense_available and self.dense_index:
                 try:
                     dense_hits = self.dense_index.search(query, top_k=top_k)
                 except Exception as exc:  # pragma: no cover - defensive fallback
-                    logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
-                    if mode == "dense":
+                    logger.warning("[mem][W01] chroma index unavailable, fallback to bm25 (%s)", exc)
+                    if mode == "chroma":
                         dense_hits = []
                     else:
                         dense_hits = []
             else:
-                logger.warning("[mem][W01] dense index unavailable, fallback to bm25")
-                if mode == "dense":
+                logger.warning("[mem][W01] chroma index unavailable, fallback to bm25")
+                if mode == "chroma":
                     dense_hits = []
 
         if mode == "bm25":
             return self._hits_to_results(bm25_hits, top_k, use_bm25=True, use_dense=False)
-        if mode == "dense":
+        if mode == "chroma":
             return self._hits_to_results(dense_hits, top_k, use_bm25=False, use_dense=True)
 
         merged = self._merge_scores(bm25_hits, dense_hits)

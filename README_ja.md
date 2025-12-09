@@ -25,7 +25,7 @@
 - 🔄 **モード切り替え**
   - `hybrid`（ハイブリッド）
   - `bm25`（BM25 のみ）
-  - `dense`（Chroma のみ）
+  - `chroma`（Chroma のみ）
   - 目的に応じて検索モードを選択可能
 
 - 📝 **簡易要約**
@@ -100,12 +100,12 @@ mem.search("メモリ")  # default_mode を使用
 ```
 
 - BM25:  typo に弱いが、「キーワード一致」の強さ・解釈の素直さがメリット  
-- Dense:  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
+- Chroma:  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
 - Hybrid: 両方のスコアを組み合わせて、実用バランスを狙うモード
 
 ### フォールバック動作
 
-Dense 検索（Chroma）が利用できない環境では、**BM25 のみ**の検索に自動フォールバックします。  
+Chroma が利用できない環境では、**BM25 のみ**の検索に自動フォールバックします。  
 このとき、ログに次のような警告を出力します。
 
 - `[mem][W01] ... fallback to bm25`
@@ -121,7 +121,7 @@ from memolla import Memory
 
 mem = Memory(
     # ここに必要なら設定を書く（例: DB パスや Chroma パラメータ、デフォルト検索モードなど）
-    default_mode="hybrid",  # "bm25" / "dense" も選べます
+    default_mode="hybrid",  # "bm25" / "chroma" も選べます
 )
 ```
 
@@ -143,12 +143,8 @@ doc = mem.get_knowledge("doc1")
 ### 検索
 
 ```python
-# ハイブリッド検索
-results = mem.search("検索クエリ")  
-
-# モード指定
-results_bm25  = mem.search("検索クエリ", mode="bm25")
-results_dense = mem.search("検索クエリ", mode="dense")
+# コンストラクタで指定した default_mode（hybrid/bm25/chroma）で検索
+results = mem.search("検索クエリ")
 ```
 
 `results` の中身は、スコア・ソース種別（conversation / knowledge）・テキストなどを含む構造体/辞書のリストになる想定です。
