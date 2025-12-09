@@ -52,6 +52,7 @@ class Memory:
         search_modes: Sequence[str] | str = ("bm25", "chroma"),
         blend_alpha: float = 0.5,
         fanout: int = 2,
+        rerank_mode: str = "normalized-score",  # or "llm"
         **backend_options: Any,
     ) -> None:
         normalized_modes = self._normalize_modes(search_modes)
@@ -61,9 +62,12 @@ class Memory:
             raise ValueError("[mem][E004] blend_alpha must be between 0 and 1")
         if fanout <= 0:
             raise ValueError("[mem][E004] fanout must be positive")
+        if rerank_mode not in {"normalized-score", "llm"}:
+            raise ValueError("[mem][E004] unsupported rerank_mode")
         self.search_modes = normalized_modes
         self.hybrid_alpha = blend_alpha
         self.fanout = fanout
+        self.rerank_mode = rerank_mode
         self.lexical_backend = "bm25"
         self.vector_backend = "chroma"
 
@@ -185,6 +189,8 @@ class Memory:
             return self._hits_to_results(dense_hits, top_k, use_bm25=False, use_dense=True)
 
         merged = self._merge_scores(bm25_hits, dense_hits, alpha=self.hybrid_alpha)
+        if self.rerank_mode == "llm":
+            merged = self._rerank_llm(merged, query, top_k)
         return self._merged_to_results(merged, top_k)
 
     def _get_chunk(self, doc_id: str, chunk_id: str) -> Optional[ChunkRecord]:
@@ -275,6 +281,18 @@ class Memory:
                 )
             )
         return results
+
+    def _rerank_llm(
+        self,
+        merged: List[tuple[str, float, Optional[float], Optional[float]]],
+        query: str,
+        top_k: int,
+    ) -> List[tuple[str, float, Optional[float], Optional[float]]]:
+        # TODO: implement true LLM reranking; for now, passthrough with warning.
+        if not isinstance(self.llm.client, object):
+            logger.warning("[mem][W01] LLM reranker unavailable, using normalized scores")
+            return merged
+        return merged
 
     # 要約 / create_summary
     def create_summary(

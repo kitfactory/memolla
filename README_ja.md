@@ -99,13 +99,14 @@ mem = Memory(
     search_modes=("bm25", "chroma"),  # "bm25" / "chroma" / 両方
     blend_alpha=0.5,                  # score = α*vector + (1-α)*bm25
     fanout=2,                         # BM25/ベクトルから top_k*fanout 件を取得
+    rerank_mode="normalized-score",   # もしくは "llm"（プレースホルダ）
 )
 mem.search("メモリ")  # search_modes を使用
 ```
 
 - BM25:  typo に弱いが、「キーワード一致」の強さ・解釈の素直さがメリット  
 - Vector (Chroma 等):  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
-- Hybrid: BM25 と Vector のスコアを `score = α * vector + (1-α) * bm25`（デフォルト α=0.5、`blend_alpha` で変更可）。各側は `fanout` 倍の候補を取得してから融合
+- Hybrid: BM25 と Vector のスコアを `score = α * vector + (1-α) * bm25`（デフォルト α=0.5、`blend_alpha` で変更可）。各側は `fanout` 倍の候補を取得してから融合。`rerank_mode` は `normalized-score`（デフォルト）か `llm`（プレースホルダ）を選択。
 
 ### フォールバック動作
 

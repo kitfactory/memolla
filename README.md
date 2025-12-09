@@ -89,13 +89,14 @@ mem = Memory(
     search_modes=("bm25", "chroma"),  # choose bm25, chroma, or both
     blend_alpha=0.5,                  # score = α*vector + (1-α)*bm25 when both are used
     fanout=2,                         # fetch top_k * fanout from each source before fusion
+    rerank_mode="normalized-score",   # or "llm" (experimental placeholder)
 )
 mem.search("memory")  # uses search_modes and fanout settings
 ```
 
 - BM25: strong keyword matching, weaker to typos  
 - Vector (Chroma or custom): semantic closeness, may occasionally drift  
-- Hybrid: merges BM25 and Vector scores with `score = α * vector + (1-α) * bm25` (α=0.5 by default; `blend_alpha` configurable, `fanout` controls how many candidates each side fetches before fusion)
+- Hybrid: merges BM25 and Vector scores with `score = α * vector + (1-α) * bm25` (α=0.5 by default; `blend_alpha` configurable, `fanout` controls how many candidates each side fetches before fusion; rerank_mode can be `normalized-score` or `llm` placeholder)
 
 ### Fallback
 
