@@ -48,15 +48,12 @@ class Memory:
     def __init__(
         self,
         *,
-        backend: str = "auto",
         db_path: str | None = None,
         search_modes: Sequence[str] | str = ("bm25", "chroma"),
         blend_alpha: float = 0.5,
         fanout: int = 2,
         **backend_options: Any,
     ) -> None:
-        if backend != "auto":
-            raise ValueError("[mem][E004] Unsupported backend")
         normalized_modes = self._normalize_modes(search_modes)
         if not normalized_modes:
             raise ValueError("[mem][E004] search_modes must include bm25 and/or chroma")
@@ -72,6 +69,7 @@ class Memory:
 
         self.db_path = Path(db_path or os.getenv("MEMOLLA_DB_PATH", ".memolla/db.sqlite"))
         self.repo = SQLiteRepository(self.db_path)
+        self.base_dir = self.db_path.parent
 
         provider_settings = load_provider_settings(
             model=backend_options.get("model"),
@@ -83,8 +81,8 @@ class Memory:
         self.embedding = EmbeddingProvider(client=client, model=provider_settings.embedding_model)
         self.llm = LLMProvider(client=client, model=provider_settings.model)
 
-        chroma_dir = os.getenv("MEMOLLA_CHROMA_PERSIST_DIR")
-        self.bm25_index = BM25Index()
+        chroma_dir = os.getenv("MEMOLLA_CHROMA_PERSIST_DIR") or str(self.base_dir / "chroma")
+        self.bm25_index = BM25Index(base_dir=self.base_dir / "bm25")
         try:
             self.dense_index = DenseIndex(persist_dir=chroma_dir, embedding=self.embedding)
             self.dense_available = True

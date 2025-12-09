@@ -55,7 +55,7 @@ class LLMProvider(Protocol):
 ## 6. インデックス/検索設計
 - BM25: bm25s_j (最新) でチャンク単位のインデックスを構築し、クエリごとにスコアを返す。
 - Dense: Chroma (in-process) を用い、OpenAI 互換 EmbeddingProvider で生成したベクトルを登録する。
-- ハイブリッド: BM25 と Dense のスコアを 0〜1 に正規化し、`score = α * dense + (1-α) * bm25` を算出。デフォルトは `alpha=0.5`, `top_k=5`, `top_k_bm25=10`, `top_k_chroma=10`。
+- ハイブリッド: BM25 と ベクトル（デフォルト Chroma）のスコアを 0〜1 に正規化し、`score = α * vector + (1-α) * bm25` を算出。デフォルトは `alpha=0.5`, `top_k=5`, `fanout=2`（BM25/ベクトルはそれぞれ `top_k * fanout` 件を取得して融合）。
 - フォールバック: DenseIndex 初期化失敗時は BM25 のみに切り替え、`[mem][W01]` をログ出力する。
 
 ## 7. ログ/エラー方針

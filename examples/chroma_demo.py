@@ -3,7 +3,7 @@ from memolla import Memory
 
 
 def main() -> None:
-    mem = Memory(default_mode="chroma")
+    mem = Memory(search_modes="chroma")
     mem.add_knowledge("doc1", "Chroma はベクトル検索に使われます。")
     mem.add_knowledge("doc2", "埋め込みモデルでテキストをベクトル化します。")
 

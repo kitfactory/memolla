@@ -113,7 +113,7 @@ In most cases you only touch `Memory`:
 from memolla import Memory
 
 mem = Memory(
-    # put settings here if needed (DB path, Chroma params, search modes, etc.)
+    # put settings here if needed (DB base dir, Chroma params, search modes, etc.)
     search_modes=("bm25", "chroma"),  # or a single string "bm25" / "chroma"
 )
 ```

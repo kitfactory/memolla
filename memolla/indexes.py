@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import chromadb
@@ -14,11 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class BM25Index:
-    def __init__(self) -> None:
+    def __init__(self, *, base_dir: Optional[Path] = None) -> None:
         self.tokenizer = Tokenizer()
         self.bm25 = BM25()
         self._encoded_corpus: List[str] = []
         self._chunk_map: Dict[str, ChunkRecord] = {}
+        self.base_dir = base_dir
+        if self.base_dir:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            self._load()
 
     def _encode_entry(self, chunk: ChunkRecord) -> str:
         return f"{chunk.chunk_id}||{chunk.text}"
@@ -33,6 +39,7 @@ class BM25Index:
         tokenized = self.tokenizer.tokenize(self._encoded_corpus, return_as="tuple", show_progress=False)
         # チャンク全体で再構築する / Rebuild index over full corpus
         self.bm25.index(tokenized, show_progress=False)
+        self._save()
 
     def search(self, query: str, top_k: int) -> List[Tuple[str, float]]:
         if not self._encoded_corpus:
@@ -56,6 +63,38 @@ class BM25Index:
                 continue
             hits.append((chunk_id, float(score)))
         return hits
+
+    def _save(self) -> None:
+        if not self.base_dir:
+            return
+        data_path = self.base_dir / "bm25_corpus.json"
+        map_path = self.base_dir / "bm25_chunks.json"
+        model_dir = self.base_dir / "bm25_model"
+        try:
+            data_path.write_text(json.dumps(self._encoded_corpus, ensure_ascii=False))
+            map_payload = {cid: {"doc_id": c.doc_id, "seq": c.seq, "text": c.text} for cid, c in self._chunk_map.items()}
+            map_path.write_text(json.dumps(map_payload, ensure_ascii=False))
+            model_dir.mkdir(parents=True, exist_ok=True)
+            self.bm25.save(model_dir)
+        except Exception:
+            logger.exception("Failed to save BM25 index")
+
+    def _load(self) -> None:
+        data_path = self.base_dir / "bm25_corpus.json"
+        map_path = self.base_dir / "bm25_chunks.json"
+        model_dir = self.base_dir / "bm25_model"
+        if not data_path.exists() or not map_path.exists() or not model_dir.exists():
+            return
+        try:
+            self._encoded_corpus = json.loads(data_path.read_text())
+            raw_map = json.loads(map_path.read_text())
+            for cid, val in raw_map.items():
+                self._chunk_map[cid] = ChunkRecord(chunk_id=cid, doc_id=val["doc_id"], seq=val["seq"], text=val["text"])
+            self.bm25.load(model_dir)
+        except Exception:
+            logger.exception("Failed to load BM25 index; falling back to empty index")
+            self._encoded_corpus = []
+            self._chunk_map = {}
 
 
 class DenseIndex:

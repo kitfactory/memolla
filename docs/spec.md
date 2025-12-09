@@ -5,7 +5,7 @@
 - エラーメッセージ形式: `[mem][E{番号}] {説明}`。実装は表 8.1 のメッセージと完全一致させる。
 - タイムスタンプは UTC で保存する。
 - LLM/Embedding は OpenAI 互換 API を利用し、設定の優先度は「明示指定 → .env → 環境変数」とする。モデル名が OpenAI 公式名なら OpenAI プロバイダ、それ以外は base_url により `OPENAI_BASE_URL` → `LMSTUDIO_BASE_URL` → `OLLAMA_BASE_URL` の順で自動判定する。デフォルトは OpenAI モデル（例: `gpt-4o-mini`, `text-embedding-3-small`）を使用し、`OPENAI_API_KEY` が必要。
-- デフォルトの検索パラメータは `alpha=0.5`, `top_k=5`, `top_k_bm25=10`, `top_k_chroma=10`。チャンク戦略は `chunk_size=512`, `overlap=32` で固定。
+- デフォルトの検索パラメータは `alpha=0.5`, `top_k=5`, `fanout=2`。チャンク戦略は `chunk_size=512`, `overlap=32` で固定。
 - LLM/Embedding 呼び出しはデフォルトでタイムアウト 30 秒・最大リトライ 2 回・指数バックオフを適用し、呼び出しオプションで上書き可能とする。
 
 ## 2. Memory 初期化（Spec ID: F-00）
@@ -57,11 +57,11 @@
 ## 5. 検索 search（Spec ID: F-03）
 
 ### 5.1. ハイブリッド検索で結果を統合する（F-03-01）
-- Given BM25 と Chroma が利用可能
+- Given BM25 とベクトル検索（デフォルト Chroma）が利用可能
 - When `search(query, top_k)` を呼ぶ
-- Then BM25 上位 `top_k_bm25` 件と Chroma 上位 `top_k_chroma` 件を取得し、`score = α * dense + (1-α) * bm25` で正規化スコアを計算する
+- Then BM25 から `top_k * fanout` 件、ベクトルから `top_k * fanout` 件を取得し、`score = α * vector + (1-α) * bm25` で正規化スコアを計算する
 - And `score` 降順で `top_k` 件の `SearchResult` を返す（`score_bm25`・`score_dense` を含む）
-- And 初期値は `alpha=0.5`, `top_k=5`, `top_k_bm25=10`, `top_k_chroma=10`
+- And 初期値は `alpha=0.5`, `top_k=5`, `fanout=2`
 
 ### 5.2. Chroma が利用できない場合は BM25 のみで検索する（F-03-02）
 - Given Chroma 初期化に失敗している、または無効化されている
@@ -114,4 +114,4 @@
 | [mem][E004] top_k must be positive / Unsupported backend | search パラメータ検証 / Memory backend 検証 |
 | [mem][E005] optimize level not implemented | optimize すべての level |
 | [mem][E006] target not found | create_summary 対象不在 |
-| [mem][W01] chroma index unavailable, fallback to bm25 | search で Chroma 不在時の警告ログ |
+| [mem][W01] dense index unavailable, fallback to bm25 | search でベクトル索引不在時の警告ログ |

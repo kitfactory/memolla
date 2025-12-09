@@ -124,7 +124,7 @@ mem.search("メモリ")  # search_modes を使用
 from memolla import Memory
 
 mem = Memory(
-    # ここに必要なら設定を書く（例: DB パスや Chroma パラメータ、デフォルト検索モードなど）
+    # ここに必要なら設定を書く（例: DB 基底ディレクトリ、Chroma パラメータ、デフォルト検索モードなど）
     search_modes=("bm25", "chroma"),  # "bm25" / "chroma" も選べます
 )
 ```

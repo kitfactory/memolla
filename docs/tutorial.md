@@ -27,7 +27,7 @@ python examples/bm25_demo.py
 
 ## 3. Chroma（ベクトル検索）のみで検索
 `examples/chroma_demo.py`  
-Chroma のベクトル検索を単独で使います（コンストラクタで `default_mode="chroma"` を指定）。
+    Chroma のベクトル検索を単独で使います（コンストラクタで `search_modes="chroma"` を指定）。
 ```bash
 python examples/chroma_demo.py
 ```
@@ -39,4 +39,4 @@ python examples/chroma_demo.py
 
 ## メモ
 - Dense 利用には埋め込み生成が必要です。`OPENAI_API_KEY` が無い場合は簡易ハッシュ埋め込みで動作しますが、品質は劣化します。
-- チャンクサイズ/overlap はデフォルト固定（512/32）。検索パラメータは alpha=0.5, top_k=5, top_k_bm25=10, top_k_chroma=10 です。
+- チャンクサイズ/overlap はデフォルト固定（512/32）。検索パラメータは alpha=0.5, top_k=5, fanout=2 です。

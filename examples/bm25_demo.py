@@ -1,9 +1,9 @@
-"""BM25-only demo by bypassing dense index."""
+"""BM25-only demo (lexical search)."""
 from memolla import Memory
 
 
 def main() -> None:
-    mem = Memory(default_mode="bm25")
+    mem = Memory(search_modes="bm25")
 
     mem.add_knowledge("doc1", "BM25 は単語頻度に基づく検索手法です。")
     mem.add_knowledge("doc2", "ハイブリッド検索では BM25 も利用されます。")
