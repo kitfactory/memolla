@@ -94,13 +94,12 @@ memolla の検索は、Dense（Chroma）と Lexical（BM25）を組み合わせ�
 状況に応じて **BM25 だけ / Chroma だけ** も選べます。
 
 ```python
-# デフォルト: ハイブリッド検索
-mem.search("メモリ")
+# コンストラクタでデフォルトモードを指定（デフォルトは hybrid）
+mem = Memory(default_mode="hybrid")
+mem.search("メモリ")  # default_mode を使用
 
-# BM25 のみで検索したい場合
+# 呼び出し時に上書きしたい場合
 mem.search("メモリ", mode="bm25")
-
-# Chroma（Dense）のみで検索したい場合
 mem.search("メモリ", mode="dense")
 ```
 
@@ -125,7 +124,8 @@ Dense 検索（Chroma）が利用できない環境では、**BM25 のみ**の�
 from memolla import Memory
 
 mem = Memory(
-    # ここに必要なら設定を書く（例: DB パスや Chroma パラメータなど）
+    # ここに必要なら設定を書く（例: DB パスや Chroma パラメータ、デフォルト検索モードなど）
+    default_mode="hybrid",  # "bm25" / "dense" も選べます
 )
 ```
 

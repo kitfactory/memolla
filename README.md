@@ -84,13 +84,12 @@ print("summary:", summary)
 Hybrid (Chroma + BM25) is the default, but you can force BM25-only or dense-only:
 
 ```python
-# default: hybrid
-mem.search("memory")
+# set default at constructor (hybrid by default)
+mem = Memory(default_mode="hybrid")
+mem.search("memory")  # uses default_mode
 
-# BM25 only
+# override per-call if needed
 mem.search("memory", mode="bm25")
-
-# Chroma (dense) only
 mem.search("memory", mode="dense")
 ```
 
@@ -114,7 +113,8 @@ In most cases you only touch `Memory`:
 from memolla import Memory
 
 mem = Memory(
-    # put settings here if needed (DB path, Chroma params, etc.)
+    # put settings here if needed (DB path, Chroma params, default search mode, etc.)
+    default_mode="hybrid",  # or "bm25" / "dense"
 )
 ```
 

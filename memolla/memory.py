@@ -32,10 +32,14 @@ class Memory:
         *,
         backend: str = "auto",
         db_path: str | None = None,
+        default_mode: str = "hybrid",
         **backend_options: Any,
     ) -> None:
         if backend != "auto":
             raise ValueError("[mem][E004] Unsupported backend")
+        if default_mode not in {"hybrid", "bm25", "dense"}:
+            raise ValueError("[mem][E004] unsupported search mode")
+        self.default_mode = default_mode
 
         self.db_path = Path(db_path or os.getenv("MEMOLLA_DB_PATH", ".memolla/db.sqlite"))
         self.repo = SQLiteRepository(self.db_path)
@@ -122,10 +126,10 @@ class Memory:
         return doc
 
     # 検索 / search
-    def search(self, query: str, top_k: int = 5, mode: str = "hybrid") -> List[SearchResult]:
+    def search(self, query: str, top_k: int = 5, mode: Optional[str] = None) -> List[SearchResult]:
         if top_k <= 0:
             raise ValueError("[mem][E004] top_k must be positive")
-        mode = mode.lower()
+        mode = (mode or self.default_mode).lower()
         if mode not in {"hybrid", "bm25", "dense"}:
             raise ValueError("[mem][E004] unsupported search mode")
 
