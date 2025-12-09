@@ -91,7 +91,7 @@ mem.search("memory")  # uses default_mode
 
 - BM25: strong keyword matching, weaker to typos  
 - Chroma: semantic closeness, sometimes pulls irrelevant items  
-- Hybrid: balances both scores
+- Hybrid: merges BM25 and Chroma scores with `score = α * chroma + (1-α) * bm25` (α=0.5 by default)
 
 ### Fallback
 
