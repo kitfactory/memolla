@@ -19,7 +19,7 @@ If you don’t need a full stack like mem0 but just want **some long-term memory
   BM25 (`bm25s_j`) for lexical, Chroma for dense vectors, combined in hybrid mode.
 
 - 🔄 **Mode switching**  
-  `hybrid`, `bm25`, `chroma` – pick the search mode you want.
+  `hybrid` (BM25 + vector), `lexical` (BM25), `vector` (Chroma or custom) – pick the search mode you want.
 
 - 📝 **Quick summarization**  
   Uses an OpenAI-compatible API to summarize docs (or conversations). Useful for pre-compressing RAG context.
@@ -84,23 +84,22 @@ print("summary:", summary)
 Hybrid (Chroma + BM25) is the default, but you can fix the mode at constructor time:
 
 ```python
-# set default at constructor (hybrid by default)
+# set default search modes at constructor (hybrid by default = both bm25 & vector)
 mem = Memory(
-    default_mode="hybrid",  # or "bm25" / "chroma"
-    hybrid_alpha=0.5,       # blend weight: score = α*chroma + (1-α)*bm25
-    top_k_bm25=10,
-    top_k_chroma=10,
+    search_modes=("bm25", "chroma"),  # choose bm25, chroma, or both
+    blend_alpha=0.5,                  # score = α*vector + (1-α)*bm25 when both are used
+    fanout=2,                         # fetch top_k * fanout from each source before fusion
 )
-mem.search("memory")  # uses default_mode
+mem.search("memory")  # uses search_modes and fanout settings
 ```
 
 - BM25: strong keyword matching, weaker to typos  
-- Chroma: semantic closeness, sometimes pulls irrelevant items  
-- Hybrid: merges BM25 and Chroma scores with `score = α * chroma + (1-α) * bm25` (α=0.5 by default; `hybrid_alpha` configurable)
+- Vector (Chroma or custom): semantic closeness, may occasionally drift  
+- Hybrid: merges BM25 and Vector scores with `score = α * vector + (1-α) * bm25` (α=0.5 by default; `blend_alpha` configurable, `fanout` controls how many candidates each side fetches before fusion)
 
 ### Fallback
 
-If Chroma is unavailable, memolla automatically falls back to BM25-only and logs:
+If the vector backend is unavailable, memolla automatically falls back to BM25-only and logs:
 
 - `[mem][W01] ... fallback to bm25`
 
@@ -114,8 +113,8 @@ In most cases you only touch `Memory`:
 from memolla import Memory
 
 mem = Memory(
-    # put settings here if needed (DB path, Chroma params, default search mode, etc.)
-    default_mode="hybrid",  # or "bm25" / "chroma"
+    # put settings here if needed (DB path, Chroma params, search modes, etc.)
+    search_modes=("bm25", "chroma"),  # or a single string "bm25" / "chroma"
 )
 ```
 
@@ -137,7 +136,7 @@ doc = mem.get_knowledge("doc1")
 ### Search
 
 ```python
-# search using default_mode set in constructor (hybrid/bm25/chroma)
+# search using search_modes set in constructor (bm25/chroma/both)
 results = mem.search("query")
 ```
 

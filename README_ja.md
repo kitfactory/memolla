@@ -23,9 +23,9 @@
   - 両者を組み合わせたハイブリッド検索に対応
 
 - 🔄 **モード切り替え**
-  - `hybrid`（ハイブリッド）
-  - `bm25`（BM25 のみ）
-  - `chroma`（Chroma のみ）
+  - `hybrid`（BM25 + ベクトル）
+  - `lexical`（BM25 のみ）
+  - `vector`（Chroma などベクトルストアのみ）
   - 目的に応じて検索モードを選択可能
 
 - 📝 **簡易要約**
@@ -95,17 +95,21 @@ memolla の検索は、Dense（Chroma）と Lexical（BM25）を組み合わせ�
 
 ```python
 # コンストラクタでデフォルトモードを指定（デフォルトは hybrid）
-mem = Memory(default_mode="hybrid")
-mem.search("メモリ")  # default_mode を使用
+mem = Memory(
+    search_modes=("bm25", "chroma"),  # "bm25" / "chroma" / 両方
+    blend_alpha=0.5,                  # score = α*vector + (1-α)*bm25
+    fanout=2,                         # BM25/ベクトルから top_k*fanout 件を取得
+)
+mem.search("メモリ")  # search_modes を使用
 ```
 
 - BM25:  typo に弱いが、「キーワード一致」の強さ・解釈の素直さがメリット  
-- Chroma:  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
-- Hybrid: BM25 と Chroma のスコアを `score = α * chroma + (1-α) * bm25`（デフォルト α=0.5、`hybrid_alpha` で変更可）で統合するモード
+- Vector (Chroma 等):  意味レベルの近さを拾えるが、たまに「それじゃない」ものを連れてくることも  
+- Hybrid: BM25 と Vector のスコアを `score = α * vector + (1-α) * bm25`（デフォルト α=0.5、`blend_alpha` で変更可）。各側は `fanout` 倍の候補を取得してから融合
 
 ### フォールバック動作
 
-Chroma が利用できない環境では、**BM25 のみ**の検索に自動フォールバックします。  
+ベクトルバックエンドが利用できない環境では、**BM25 のみ**の検索に自動フォールバックします。  
 このとき、ログに次のような警告を出力します。
 
 - `[mem][W01] ... fallback to bm25`
@@ -121,7 +125,7 @@ from memolla import Memory
 
 mem = Memory(
     # ここに必要なら設定を書く（例: DB パスや Chroma パラメータ、デフォルト検索モードなど）
-    default_mode="hybrid",  # "bm25" / "chroma" も選べます
+    search_modes=("bm25", "chroma"),  # "bm25" / "chroma" も選べます
 )
 ```
 
@@ -143,7 +147,7 @@ doc = mem.get_knowledge("doc1")
 ### 検索
 
 ```python
-# コンストラクタで指定した default_mode（hybrid/bm25/chroma）で検索
+# コンストラクタで指定した search_modes（bm25/chroma/両方）で検索
 results = mem.search("検索クエリ")
 ```
 

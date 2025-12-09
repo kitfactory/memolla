@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from .config import load_provider_settings
 from .indexes import BM25Index, DenseIndex
@@ -27,30 +27,48 @@ logger = logging.getLogger(__name__)
 
 
 class Memory:
+    @staticmethod
+    def _normalize_modes(modes: Sequence[str] | str) -> List[str]:
+        if isinstance(modes, str):
+            modes = [modes]
+        normalized: List[str] = []
+        mapping = {
+            "bm25": "lexical",
+            "lexical": "lexical",
+            "chroma": "vector",
+            "vector": "vector",
+            "dense": "vector",
+        }
+        for m in modes:
+            key = mapping.get(m.lower())
+            if key and key not in normalized:
+                normalized.append(key)
+        return normalized
+
     def __init__(
         self,
         *,
         backend: str = "auto",
         db_path: str | None = None,
-        default_mode: str = "hybrid",
-        hybrid_alpha: float = 0.5,
-        top_k_bm25: int = 10,
-        top_k_chroma: int = 10,
-        dense_index: Any | None = None,
+        search_modes: Sequence[str] | str = ("bm25", "chroma"),
+        blend_alpha: float = 0.5,
+        fanout: int = 2,
         **backend_options: Any,
     ) -> None:
         if backend != "auto":
             raise ValueError("[mem][E004] Unsupported backend")
-        if default_mode not in {"hybrid", "bm25", "chroma"}:
-            raise ValueError("[mem][E004] unsupported search mode")
-        if not (0.0 <= hybrid_alpha <= 1.0):
-            raise ValueError("[mem][E004] hybrid_alpha must be between 0 and 1")
-        if top_k_bm25 <= 0 or top_k_chroma <= 0:
-            raise ValueError("[mem][E004] top_k_bm25 and top_k_chroma must be positive")
-        self.default_mode = default_mode
-        self.hybrid_alpha = hybrid_alpha
-        self.top_k_bm25 = top_k_bm25
-        self.top_k_chroma = top_k_chroma
+        normalized_modes = self._normalize_modes(search_modes)
+        if not normalized_modes:
+            raise ValueError("[mem][E004] search_modes must include bm25 and/or chroma")
+        if not (0.0 <= blend_alpha <= 1.0):
+            raise ValueError("[mem][E004] blend_alpha must be between 0 and 1")
+        if fanout <= 0:
+            raise ValueError("[mem][E004] fanout must be positive")
+        self.search_modes = normalized_modes
+        self.hybrid_alpha = blend_alpha
+        self.fanout = fanout
+        self.lexical_backend = "bm25"
+        self.vector_backend = "chroma"
 
         self.db_path = Path(db_path or os.getenv("MEMOLLA_DB_PATH", ".memolla/db.sqlite"))
         self.repo = SQLiteRepository(self.db_path)
@@ -67,17 +85,13 @@ class Memory:
 
         chroma_dir = os.getenv("MEMOLLA_CHROMA_PERSIST_DIR")
         self.bm25_index = BM25Index()
-        if dense_index is not None:
-            self.dense_index = dense_index
+        try:
+            self.dense_index = DenseIndex(persist_dir=chroma_dir, embedding=self.embedding)
             self.dense_available = True
-        else:
-            try:
-                self.dense_index = DenseIndex(persist_dir=chroma_dir, embedding=self.embedding)
-                self.dense_available = True
-            except Exception as exc:  # pragma: no cover - defensive fallback
-                logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
-                self.dense_available = False
-                self.dense_index = None  # type: ignore
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
+            self.dense_available = False
+            self.dense_index = None  # type: ignore
 
     # 会話ログ追加 / add conversation log
     def add_conversation(
@@ -144,34 +158,32 @@ class Memory:
     def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
         if top_k <= 0:
             raise ValueError("[mem][E004] top_k must be positive")
-        mode = self.default_mode
-        if mode not in {"hybrid", "bm25", "chroma"}:
-            raise ValueError("[mem][E004] unsupported search mode")
+
+        use_lexical = "lexical" in self.search_modes
+        use_vector = "vector" in self.search_modes
 
         bm25_hits: List[tuple[str, float]] = []
         dense_hits: List[tuple[str, float]] = []
 
-        if mode in {"hybrid", "bm25"}:
-            bm25_hits = self.bm25_index.search(query, top_k=self.top_k_bm25)
+        if use_lexical:
+            lexical_k = max(top_k, top_k * self.fanout)
+            bm25_hits = self.bm25_index.search(query, top_k=lexical_k)
 
-        if mode in {"hybrid", "chroma"}:
+        if use_vector:
             if self.dense_available and self.dense_index:
                 try:
-                    dense_hits = self.dense_index.search(query, top_k=self.top_k_chroma)
+                    vector_k = max(top_k, top_k * self.fanout)
+                    dense_hits = self.dense_index.search(query, top_k=vector_k)
                 except Exception as exc:  # pragma: no cover - defensive fallback
-                    logger.warning("[mem][W01] dense index unavailable, fallback to bm25 (%s)", exc)
-                    if mode == "chroma":
-                        dense_hits = []
-                    else:
-                        dense_hits = []
-            else:
-                logger.warning("[mem][W01] dense index unavailable, fallback to bm25")
-                if mode == "chroma":
+                    logger.warning("[mem][W01] %s index unavailable, fallback to bm25 (%s)", self.vector_backend, exc)
                     dense_hits = []
+            else:
+                logger.warning("[mem][W01] %s index unavailable, fallback to bm25", self.vector_backend)
+                dense_hits = []
 
-        if mode == "bm25":
+        if use_lexical and not use_vector:
             return self._hits_to_results(bm25_hits, top_k, use_bm25=True, use_dense=False)
-        if mode == "chroma":
+        if use_vector and not use_lexical:
             return self._hits_to_results(dense_hits, top_k, use_bm25=False, use_dense=True)
 
         merged = self._merge_scores(bm25_hits, dense_hits, alpha=self.hybrid_alpha)
