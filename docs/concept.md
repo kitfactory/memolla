@@ -22,7 +22,7 @@
 | F-06 | Embedding/LLM プロバイダ | OpenAI 互換 API を利用し、モデル名が OpenAI 名なら OpenAI を使用。そうでなければ `OPENAI_BASE_URL` を確認し、無ければ `LMSTUDIO_BASE_URL` → `OLLAMA_BASE_URL` の順で判定。デフォルトは OpenAI モデル（例: `gpt-4o-mini` / `text-embedding-3-small`）を使用し、`OPENAI_API_KEY` が必要。 |  | MVP(v0)〜拡張 |
 
 ## 4. フェーズ分け
-- MVP (v0): F-00〜F-06 の基本挙動を実装し、`optimize` は全 level 未サポート例外で返す。チャンク戦略 (`chunk_size=512`, `overlap=32`) と検索パラメータ (`alpha=0.5`, `top_k=5`, `fanout_lexical=2`, `fanout_vector=2`) は固定。デフォルトの LLM/Embedding は OpenAI（`OPENAI_API_KEY` 必須）を利用。
+- MVP (v0): F-00〜F-06 の基本挙動を実装し、`optimize` は全 level 未サポート例外で返す。チャンク戦略 (`chunk_size=512`, `overlap=32`) と検索パラメータ (`alpha=0.5`, `top_k=5`, `fanout=2`) は固定。デフォルトの LLM/Embedding は OpenAI（`OPENAI_API_KEY` 必須）を利用。
 - 拡張 (v1+): `optimize(level="index"|"reembed")` のフル試行、複数 embedding モデルや chunk 戦略・検索パラメータの設定化、評価コーパス生成と比較の自動化。
 
 ## 5. 依存関係の概要
